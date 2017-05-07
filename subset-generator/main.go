@@ -13,30 +13,45 @@ const (
 
 var (
 	buffer  = make([]uint8, 0, 1<<(limit+1))
-	subsets = make([][][]uint8, limit+1)
+	subsets = make([][]struct{ start, end int }, limit+1)
 )
 
 func main() {
 	// subsets([]) == []
-	subsets[0] = [][]uint8{buffer[0:0]}
-	// subsets([1]) == [[1]]
-	buffer = append(buffer, 1)
-	subsets[1] = [][]uint8{[]uint8{}, buffer[0:1]}
-	fmt.Println(subsets)
+	subsets[0] = []struct{ start, end int }{{0, 0}}
 
-	for i := 2; i <= limit; i++ {
+	for i := 1; i <= limit; i++ {
 		// subsets([0..N]) = subsets([0..N-1]) ++ eachN(subsets([0..N-1]) ++ [N])
-		subsets[i] = make([][]uint8, 0)
+		subsets[i] = make([]struct{ start, end int }, 0)
 		for j := range subsets[i-1] {
-			subsets[i] = append(subsets[i], subsets[j]...)
+			subsets[i] = append(subsets[i], subsets[i-1][j])
 		}
 		for _, prev := range subsets[i-1] {
 			l := len(buffer)
-			buffer = append(buffer, prev...)
+			buffer = append(buffer, buffer[prev.start:prev.end]...)
 			buffer = append(buffer, uint8(i))
-			subsets[i] = append(subsets[i], buffer[l:])
+			subsets[i] = append(subsets[i], struct{ start, end int }{l, len(buffer)})
 		}
-		fmt.Println("**", i, subsets[i])
 	}
-	fmt.Println(buffer)
+
+	// TODO -could compress buffer much more: var buffer = []byte{0x1, 0x2, 0x1, 0x2, 0x3, ...
+	fmt.Printf(`package subsets
+// Buffer is %d bytes.
+
+var buffer = %#v
+var subsets = [][][]uint8{
+`, len(buffer), buffer)
+
+	for i := range subsets {
+		fmt.Print("\t[][]uint8{")
+		for j := range subsets[i] {
+			if j > 0 {
+				fmt.Print(", ")
+			}
+			fmt.Printf("buffer[%d:%d]", subsets[i][j].start, subsets[i][j].end)
+		}
+		fmt.Println("},")
+	}
+
+	fmt.Println("}")
 }
