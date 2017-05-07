@@ -1,14 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"go/format"
 	"os"
 )
 
 const (
 	// Max number of items to generate lookup table for. Since the output
 	// is O(2^N), this can't be too high!
-	limit = 14
+	limit = 16
 )
 
 var (
@@ -22,9 +24,10 @@ func main() {
 	for i := 1; i <= limit; i++ {
 		// subsets([0..N]) = subsets([0..N-1]) ++ eachN(subsets([0..N-1]) ++ [N])
 		// The previous subsets are not actually stored again.
+		// This has the disadvantage of not being able to hold the subsets in order.
 		subsets[i] = make([][]uint8, 0)
 		for j := 0; j < i; j++ {
-			for _, prev := range subsets[j] {
+			for k := range subsets[j] {
 				buffer := make([]byte, len(prev)+1)
 				copy(buffer, prev)
 				buffer[len(buffer)-1] = uint8(i)
@@ -33,30 +36,41 @@ func main() {
 		}
 	}
 
+	buff := new(bytes.Buffer)
+	fmt.Fprintf(buff, "package subsets\n\n")
+	fmt.Fprintf(buff, "// Automatically generated - do not edit\n")
+	fmt.Fprintf(buff, "// Limit = %d\n", limit)
+
+	fmt.Fprintf(buff, "\nvar subsets = [][][]uint8{\n")
+	for i := range subsets {
+		fmt.Fprintf(buff, "\t{ ")
+		for j := range subsets[i] {
+			fmt.Fprintf(buff, "{")
+			for k := range subsets[i][j] {
+				fmt.Fprint(buff, subsets[i][j][k], ", ")
+			}
+			fmt.Fprintf(buff, "}, \n")
+		}
+		fmt.Fprintln(buff, "},")
+	}
+
+	fmt.Fprintf(buff, "}\n")
+
+	formatted, err := format.Source(buff.Bytes())
+	if err != nil {
+		// Must be a coding error
+		panic(err)
+	}
+
 	f, err := os.Create("../subsets-generated.go")
+	if err == nil {
+		_, err = f.Write(formatted)
+	}
+	if err == nil {
+		err = f.Close()
+	}
+
 	if err != nil {
 		panic(err)
 	}
-	defer f.Close()
-
-	fmt.Fprintf(f, "package subsets\n\n")
-	fmt.Fprintf(f, "// Automatically generated - do not edit\n")
-	fmt.Fprintf(f, "// Limit = %d\n", limit)
-
-	fmt.Fprintf(f, "\nvar subsets = [][][]uint8{\n")
-	for i := range subsets {
-		// /*  2 */ [][]uint8{[]uint8{0x2}, []uint8{0x1, 0x2}},
-		// /*  2 */ [][]uint8{{2}, {1, 2}},
-		fmt.Fprintf(f, "\t{ ")
-		for j := range subsets[i] {
-			fmt.Fprintf(f, "{")
-			for k := range subsets[i][j] {
-				fmt.Fprint(f, subsets[i][j][k], ", ")
-			}
-			fmt.Fprintf(f, "}, \n")
-		}
-		fmt.Fprintln(f, "},")
-	}
-
-	fmt.Fprintf(f, "}\n")
 }
