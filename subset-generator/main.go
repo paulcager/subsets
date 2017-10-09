@@ -21,7 +21,7 @@ func main() {
 	fmt.Print("	subsets = `")
 
 	max := uint64(1<<uint(limit)) - 1
-	for bits := uint64(1); bits <= max; bits++ {
+	for bits := uint64(0); bits <= max; bits++ {
 		for bit := 0; bit <= limit; bit++ {
 			if (bits & (1 << uint(bit))) != 0 {
 				fmt.Printf("%c", "ABCDEFGHIJKLMNOPQRSTUVXYZ"[bit])

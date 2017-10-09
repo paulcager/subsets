@@ -15,13 +15,48 @@ func (t testCallback) callback(indexes []int) {
 	for i := range indexes {
 		b[i] = byte('A' + indexes[i])
 	}
+	if t[string(b)] {
+		panic("Duplicate: " + string(b))
+	}
 	t[string(b)] = true
+}
+
+func traditionalEnumerate(n int, callback Callback) {
+	max := uint64(1<<uint(n)) - 1
+	indexes := make([]int, n)
+	for bits := uint64(0); bits <= max; bits++ {
+		size := 0
+		for bit := 0; bit <= n; bit++ {
+			if (bits & (1 << uint(bit))) != 0 {
+				indexes[size] = bit
+				size++
+			}
+		}
+		callback(indexes[:size])
+	}
+}
+
+func recursiveManiacsMethod(n int) [][]int {
+	if n == 0 {
+		return [][]int{[]int{}}
+	}
+	result := recursiveManiacsMethod(n - 1)
+	prev := len(result)
+	for i := 0; i < prev; i++ {
+		newOne := make([]int, len(result[i])+1)
+		copy(newOne, result[i])
+		newOne[len(newOne)-1] = n - 1
+		result = append(result, newOne)
+	}
+
+	return result
 }
 
 func TestThree(t *testing.T) {
 	callback := make(testCallback)
 	Enumerate(3, callback.callback)
 	expected := map[string]bool{
+		"":    true,
 		"A":   true,
 		"B":   true,
 		"C":   true,
@@ -34,11 +69,26 @@ func TestThree(t *testing.T) {
 }
 
 func TestCompare(t *testing.T) {
+	const n = 3
+
 	callback1 := make(testCallback)
-	Enumerate(8, callback1.callback)
+	traditionalEnumerate(n, callback1.callback)
+
 	callback2 := make(testCallback)
-	traditionalEnumerate(8, callback2.callback)
-	assert.Equal(t, callback2, callback1)
+	Enumerate(n, callback2.callback)
+
+	callback3 := make(testCallback)
+	items := recursiveManiacsMethod(n)
+	for _, item := range items {
+		b := make([]byte, len(item))
+		for i := range item {
+			b[i] = byte('A' + item[i])
+		}
+		callback3[string(b)] = true
+	}
+
+	assert.Equal(t, callback1, callback2)
+	assert.Equal(t, callback1, callback3)
 }
 
 func BenchmarkThree(b *testing.B) {
@@ -62,21 +112,6 @@ func BenchmarkSixteen(b *testing.B) {
 	}
 }
 
-func traditionalEnumerate(n int, callback Callback) {
-	max := uint64(1<<uint(n)) - 1
-	indexes := make([]int, n)
-	for bits := uint64(1); bits <= max; bits++ {
-		size := 0
-		for bit := 0; bit <= n; bit++ {
-			if (bits & (1 << uint(bit))) != 0 {
-				indexes[size] = bit
-				size++
-			}
-		}
-		callback(indexes[:size])
-	}
-}
-
 func BenchmarkThreeTrad(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		traditionalEnumerate(3, nullCallback)
@@ -85,6 +120,14 @@ func BenchmarkThreeTrad(b *testing.B) {
 func BenchmarkSixteenTrad(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		traditionalEnumerate(16, nullCallback)
+	}
+}
+
+var sink int
+
+func BenchmarkSixteenRecursive(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sink += len(recursiveManiacsMethod(16))
 	}
 }
 

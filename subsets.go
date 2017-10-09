@@ -22,25 +22,23 @@ func Enumerate(n int, callback Callback) {
 		ptr      = subsets
 	)
 
-	for i := 0; i < numCombs; i++ {
+	for i := 0; i <= numCombs; i++ {
 		ind := strings.IndexByte(ptr, '\n')
 		this := ptr[:ind]
 		ptr = ptr[ind+1:]
-		//fmt.Printf("%s\t", this)
 		count := 0
 		for _, c := range this {
 			indexes[count] = int(c - 'A')
 			count++
-			//fmt.Printf("%c[%d] %v ", c, int(c-'A'), indexes[:count])
 		}
-		//fmt.Println()
 		callback(indexes[:count])
 	}
 }
 
 const (
 	limit   = 16
-	subsets = `A
+	subsets = `
+A
 B
 AB
 C
